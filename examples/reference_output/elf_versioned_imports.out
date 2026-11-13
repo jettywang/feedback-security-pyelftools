@@ -1,0 +1,11 @@
+Processing file: ./examples/sample_exe64.elf
+  parse mode: sections
+  3 imported dynamic symbol entries
+  #0    <null symbol> bind=STB_LOCAL versym='VER_NDX_LOCAL' requires <unresolved> from <unknown library>
+      sources: dynsym=0x2e8, versym=0x368
+      unresolved: VER_NDX_LOCAL is a special/reserved index, not a named version
+  #1    __gmon_start__ bind=STB_WEAK versym='VER_NDX_LOCAL' requires <unresolved> from <unknown library>
+      sources: dynstr=0x331, dynsym=0x300, versym=0x36a
+      unresolved: VER_NDX_LOCAL is a special/reserved index, not a named version
+  #2    __libc_start_main bind=STB_GLOBAL versym=2 requires GLIBC_2.2.5 from libc.so.6
+      sources: dynstr=0x34a, dynsym=0x318, vernaux=0x380, vernaux_name=0x35c, verneed=0x370, verneed_file=0x340, versym=0x36c

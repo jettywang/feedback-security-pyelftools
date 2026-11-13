@@ -135,6 +135,26 @@ count and enumerate them. There are also some special segment classes
 that have more information about well-known segments. Take a look at
 `elftools/elf/segments.py` for more details.
 
+### Versioned imported symbols
+
+For dynamic analysis it is often insufficient to list the dynamic symbol
+names: an external symbol may require a specific symbol version. The
+`VersionedImports` class in `elftools/elf/versioned_imports.py` builds a
+versioned import inventory from the dynamic symbol table, the VERSYM
+table and the VERNEED table. For each undefined dynamic symbol it reports
+the symbol and version indices, the required version name, the shared
+library that supplies the version, the GNU hidden bit and the file offset
+of every record the association was derived from.
+
+Only version *requirements* (VERNEED) are treated as imports; version
+*definitions* (VERDEF) describe what the file itself provides and are
+never reported as import demands. No information is inferred from
+libraries installed on the host. When section headers are absent, the
+tables are recovered from the `PT_DYNAMIC` segment; anything that still
+cannot be resolved is returned with an explicit reason string, both per
+record and in the parser-level `notes` list. See
+`examples/elf_versioned_imports.py` for a runnable demonstration.
+
 ### Structs and headers
 
 Most objects in ELF and DWARF have \"headers\", and such objects usually
