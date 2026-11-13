@@ -1,0 +1,313 @@
+{
+  "container": {
+    "class": "ELF64",
+    "endian": "little",
+    "entry": "0x1000",
+    "machine": "EM_X86_64",
+    "type": "ET_DYN"
+  },
+  "dynamic": {
+    "provenance": "PT_DYNAMIC segment",
+    "table_addresses": {
+      "DT_FINI_ARRAY": "0x1318",
+      "DT_FINI_ARRAYSZ": "0x8",
+      "DT_INIT_ARRAY": "0x1308",
+      "DT_INIT_ARRAYSZ": "0x10",
+      "DT_PREINIT_ARRAY": "0x1300",
+      "DT_PREINIT_ARRAYSZ": "0x8",
+      "DT_RELA": "0x1220",
+      "DT_STRTAB": "0x1100",
+      "DT_SYMTAB": "0x1180"
+    },
+    "tags": [
+      "DT_FINI_ARRAY",
+      "DT_FINI_ARRAYSZ",
+      "DT_INIT",
+      "DT_INIT_ARRAY",
+      "DT_INIT_ARRAYSZ",
+      "DT_NEEDED",
+      "DT_NULL",
+      "DT_PREINIT_ARRAY",
+      "DT_PREINIT_ARRAYSZ",
+      "DT_RELA",
+      "DT_RELAENT",
+      "DT_RELASZ",
+      "DT_STRSZ",
+      "DT_STRTAB",
+      "DT_SYMENT",
+      "DT_SYMTAB"
+    ]
+  },
+  "evidence": [
+    {
+      "address_form": "base+addend",
+      "confidence": "observed header field; not proof of invocation",
+      "file_value": "0x1000 (parser VA)",
+      "final_target": "B + 0x1000 (process entry, not an initializer callback)",
+      "initializer": null,
+      "kind": "entry",
+      "loader_condition": "the loader transfers control to this process entry after initialization; it is not itself an initializer-array callback; ET_DYN runtime value is B + e_entry",
+      "notes": [
+        "separate from DT_INIT/DT_INIT_ARRAY loader callbacks"
+      ],
+      "requires_load_bias": true,
+      "slot": null,
+      "source": "ELF header e_entry"
+    },
+    {
+      "address_form": "base+addend",
+      "confidence": "observed relocation; final address unresolved without B",
+      "file_value": "r_addend=0x1030 (explicit RELA field)",
+      "final_target": "B + 0x1030 (relative relocation)",
+      "initializer": "R_X86_64_RELATIVE writes the slot at 0x1300",
+      "kind": "relative",
+      "loader_condition": "slot is in a PT_LOAD with PF_W; the loader must process the applicable REL/RELA table; B is the actual load bias",
+      "notes": [
+        "REL/RELA determines where the addend lives; the slot is where the loader writes",
+        "symbol field is ignored for RELATIVE/IRELATIVE; the addend determines the target",
+        "same table also recovered via: PT_DYNAMIC RELA table"
+      ],
+      "requires_load_bias": true,
+      "slot": "0x1300 (parser VA; add B for ET_DYN runtime address)",
+      "source": "section .rela.dyn (SHT_RELA): R_X86_64_RELATIVE @ r_offset=0x1300; r_addend=0x1030 (explicit RELA field); no symbol (r_info_sym=0)"
+    },
+    {
+      "address_form": "base+addend",
+      "confidence": "observed relocation; final address unresolved without B",
+      "file_value": "r_addend=0x1040 (explicit RELA field)",
+      "final_target": "B + 0x1040 (relative relocation)",
+      "initializer": "R_X86_64_RELATIVE writes the slot at 0x1308",
+      "kind": "relative",
+      "loader_condition": "slot is in a PT_LOAD with PF_W; the loader must process the applicable REL/RELA table; B is the actual load bias",
+      "notes": [
+        "REL/RELA determines where the addend lives; the slot is where the loader writes",
+        "symbol field is ignored for RELATIVE/IRELATIVE; the addend determines the target",
+        "same table also recovered via: PT_DYNAMIC RELA table"
+      ],
+      "requires_load_bias": true,
+      "slot": "0x1308 (parser VA; add B for ET_DYN runtime address)",
+      "source": "section .rela.dyn (SHT_RELA): R_X86_64_RELATIVE @ r_offset=0x1308; r_addend=0x1040 (explicit RELA field); no symbol (r_info_sym=0)"
+    },
+    {
+      "address_form": "resolver-result",
+      "confidence": "observed relocation; returned address unknown without executing resolver",
+      "file_value": "r_addend=0x1020 (explicit RELA field)",
+      "final_target": "call B + 0x1020 as resolver; the resolver return value is the final IFUNC function address",
+      "initializer": "R_X86_64_IRELATIVE writes the slot at 0x1310",
+      "kind": "irelative",
+      "loader_condition": "slot is in a PT_LOAD with PF_W; the loader must process the applicable REL/RELA table; B is the actual load bias; resolver must be executable and return a code address",
+      "notes": [
+        "REL/RELA determines where the addend lives; the slot is where the loader writes",
+        "symbol field is ignored for RELATIVE/IRELATIVE; the addend determines the target",
+        "resolver address is not the final function address",
+        "same table also recovered via: PT_DYNAMIC RELA table"
+      ],
+      "requires_load_bias": true,
+      "slot": "0x1310 (parser VA; add B for ET_DYN runtime address)",
+      "source": "section .rela.dyn (SHT_RELA): R_X86_64_IRELATIVE @ r_offset=0x1310; r_addend=0x1020 (explicit RELA field); no symbol (r_info_sym=0)"
+    },
+    {
+      "address_form": "base+addend",
+      "confidence": "observed relocation; final address unresolved without B",
+      "file_value": "r_addend=0x1050 (explicit RELA field)",
+      "final_target": "B + 0x1050 (relative relocation)",
+      "initializer": "R_X86_64_RELATIVE writes the slot at 0x1318",
+      "kind": "relative",
+      "loader_condition": "slot is in a PT_LOAD with PF_W; the loader must process the applicable REL/RELA table; B is the actual load bias",
+      "notes": [
+        "REL/RELA determines where the addend lives; the slot is where the loader writes",
+        "symbol field is ignored for RELATIVE/IRELATIVE; the addend determines the target",
+        "same table also recovered via: PT_DYNAMIC RELA table"
+      ],
+      "requires_load_bias": true,
+      "slot": "0x1318 (parser VA; add B for ET_DYN runtime address)",
+      "source": "section .rela.dyn (SHT_RELA): R_X86_64_RELATIVE @ r_offset=0x1318; r_addend=0x1050 (explicit RELA field); no symbol (r_info_sym=0)"
+    },
+    {
+      "address_form": "base+addend",
+      "confidence": "observed relocation; final address unresolved without B",
+      "file_value": "r_addend=0x1010 (explicit RELA field)",
+      "final_target": "B + 0x1010 (relative relocation)",
+      "initializer": "R_X86_64_RELATIVE writes the slot at 0x12d0",
+      "kind": "relative",
+      "loader_condition": "slot is in a PT_LOAD with PF_W; the loader must process the applicable REL/RELA table; B is the actual load bias",
+      "notes": [
+        "REL/RELA determines where the addend lives; the slot is where the loader writes",
+        "symbol field is ignored for RELATIVE/IRELATIVE; the addend determines the target",
+        "same table also recovered via: PT_DYNAMIC RELA table"
+      ],
+      "requires_load_bias": true,
+      "slot": "0x12d0 (parser VA; add B for ET_DYN runtime address)",
+      "source": "section .rela.dyn (SHT_RELA): R_X86_64_RELATIVE @ r_offset=0x12d0; r_addend=0x1010 (explicit RELA field); no symbol (r_info_sym=0)"
+    },
+    {
+      "address_form": "resolver-result",
+      "confidence": "observed IFUNC symbol reference; returned address unknown",
+      "file_value": "r_info_sym=1 resolver_ifunc (st_value=0x1020, SHT_DYNSYM[3], type=STT_GNU_IFUNC (raw 10; pyelftools may print STT_LOOS)); relocation type R_X86_64_GLOB_DAT",
+      "final_target": "resolver result (the loader calls the IFUNC resolver and writes the returned code address here)",
+      "initializer": null,
+      "kind": "ifunc-reference",
+      "loader_condition": "slot is in a PT_LOAD with PF_W; the symbol must resolve to this IFUNC definition (preemption can change it); the loader must process this relocation table; the resolver must return a valid code address",
+      "notes": [
+        "STT_GNU_IFUNC st_value is a resolver entry, not the final function",
+        "symbol interposition can replace this definition"
+      ],
+      "requires_load_bias": true,
+      "slot": "0x12d8 (parser VA; add B for ET_DYN runtime address)",
+      "source": "section .rela.dyn (SHT_RELA): R_X86_64_GLOB_DAT @ r_offset=0x12d8; r_info_sym=1 resolver_ifunc (st_value=0x1020, SHT_DYNSYM[3], type=STT_GNU_IFUNC (raw 10; pyelftools may print STT_LOOS))"
+    },
+    {
+      "address_form": "base+addend",
+      "confidence": "observed relocation; final address unresolved without B",
+      "file_value": "r_addend=0x1040 (explicit RELA field)",
+      "final_target": "B + 0x1040 (relative relocation)",
+      "initializer": "R_X86_64_RELATIVE writes the slot at 0x12e0",
+      "kind": "relative",
+      "loader_condition": "slot is in a PT_LOAD with PF_W; the loader must process the applicable REL/RELA table; B is the actual load bias",
+      "notes": [
+        "REL/RELA determines where the addend lives; the slot is where the loader writes",
+        "symbol field is ignored for RELATIVE/IRELATIVE; the addend determines the target",
+        "same table also recovered via: PT_DYNAMIC RELA table"
+      ],
+      "requires_load_bias": true,
+      "slot": "0x12e0 (parser VA; add B for ET_DYN runtime address)",
+      "source": "section .rela.dyn (SHT_RELA): R_X86_64_RELATIVE @ r_offset=0x12e0; r_addend=0x1040 (explicit RELA field); r_info_sym=2 not_ifunc (st_value=0x1010, SHT_DYNSYM[3], type=STT_FUNC (raw 2))"
+    },
+    {
+      "address_form": "symbol-value",
+      "confidence": "observed symbol type; final address unknown",
+      "file_value": "st_value=0x1020 (STT_GNU_IFUNC (raw 10; pyelftools may print STT_LOOS)), defined",
+      "final_target": "resolver result; the resolver return value is the final function address",
+      "initializer": null,
+      "kind": "ifunc-symbol",
+      "loader_condition": "a symbol reference must resolve to this definition; the loader or caller invokes the resolver; no call order is implied by presence",
+      "notes": [
+        "st_value is a resolver entry for STT_GNU_IFUNC",
+        "presence in .dynsym/.symtab is not proof of invocation",
+        "preemption may select another provider"
+      ],
+      "requires_load_bias": true,
+      "slot": null,
+      "source": "SHT_DYNSYM[3] symbol #1 'resolver_ifunc'"
+    },
+    {
+      "address_form": "base+addend",
+      "confidence": "observed slot and relative relocation",
+      "file_value": "0x0 (raw file word before relocation)",
+      "final_target": "B + 0x1030 (relative relocation rewrites this slot)",
+      "initializer": "R_X86_64_RELATIVE at this slot (section .rela.dyn (SHT_RELA))",
+      "kind": "preinit-array-inapplicable",
+      "loader_condition": "slot is in a PT_LOAD with PF_W; the loader must process this dynamic table and map the array; the element is invoked in loader-defined dependency/priority order; the dynamic loader must also process any relocation for the slot",
+      "notes": [
+        "raw slot contents and the final call target are distinct",
+        "array element is invoked by the loader, not by this probe",
+        "slot is both an array element and a relocation target",
+        "this is a shared object/DSO; DT_PREINIT_ARRAY is not honored here"
+      ],
+      "requires_load_bias": true,
+      "slot": "0x1300 (parser VA; add B for ET_DYN runtime address)",
+      "source": "preinit_array[0]: DT_PREINIT_ARRAY=0x1300 + 0*8 = slot 0x1300"
+    },
+    {
+      "address_form": "base+addend",
+      "confidence": "observed slot and relative relocation",
+      "file_value": "0x0 (raw file word before relocation)",
+      "final_target": "B + 0x1040 (relative relocation rewrites this slot)",
+      "initializer": "R_X86_64_RELATIVE at this slot (section .rela.dyn (SHT_RELA))",
+      "kind": "init-array",
+      "loader_condition": "slot is in a PT_LOAD with PF_W; the loader must process this dynamic table and map the array; the element is invoked in loader-defined dependency/priority order; the dynamic loader must also process any relocation for the slot",
+      "notes": [
+        "raw slot contents and the final call target are distinct",
+        "array element is invoked by the loader, not by this probe",
+        "this slot is a load-time/startup candidate; whether it runs depends on the loader reaching the array entry",
+        "slot is both an array element and a relocation target"
+      ],
+      "requires_load_bias": true,
+      "slot": "0x1308 (parser VA; add B for ET_DYN runtime address)",
+      "source": "init_array[0]: DT_INIT_ARRAY=0x1308 + 0*8 = slot 0x1308"
+    },
+    {
+      "address_form": "resolver-result",
+      "confidence": "observed IRELATIVE; resolver result unknown",
+      "file_value": "0x0 (raw file word before relocation)",
+      "final_target": "call B + 0x1020 as resolver, then the returned address is the function candidate",
+      "initializer": "R_X86_64_IRELATIVE at this slot (section .rela.dyn (SHT_RELA))",
+      "kind": "init-array",
+      "loader_condition": "slot is in a PT_LOAD with PF_W; the loader must process this dynamic table and map the array; the element is invoked in loader-defined dependency/priority order; the dynamic loader must also process any relocation for the slot",
+      "notes": [
+        "raw slot contents and the final call target are distinct",
+        "array element is invoked by the loader, not by this probe",
+        "this slot is a load-time/startup candidate; whether it runs depends on the loader reaching the array entry",
+        "slot is both an array element and a relocation target"
+      ],
+      "requires_load_bias": true,
+      "slot": "0x1310 (parser VA; add B for ET_DYN runtime address)",
+      "source": "init_array[1]: DT_INIT_ARRAY=0x1308 + 1*8 = slot 0x1310"
+    },
+    {
+      "address_form": "base+addend",
+      "confidence": "observed slot and relative relocation",
+      "file_value": "0x0 (raw file word before relocation)",
+      "final_target": "B + 0x1050 (relative relocation rewrites this slot)",
+      "initializer": "R_X86_64_RELATIVE at this slot (section .rela.dyn (SHT_RELA))",
+      "kind": "fini-array",
+      "loader_condition": "slot is in a PT_LOAD with PF_W; the loader must process this dynamic table and map the array; the element is invoked in loader-defined dependency/priority order; the dynamic loader must also process any relocation for the slot",
+      "notes": [
+        "raw slot contents and the final call target are distinct",
+        "array element is invoked by the loader, not by this probe",
+        "exit-time candidate, not a load-time initializer",
+        "slot is both an array element and a relocation target",
+        "DT_FINI_ARRAY is an exit-time table, not a startup initializer"
+      ],
+      "requires_load_bias": true,
+      "slot": "0x1318 (parser VA; add B for ET_DYN runtime address)",
+      "source": "fini_array[0]: DT_FINI_ARRAY=0x1318 + 0*8 = slot 0x1318"
+    },
+    {
+      "address_form": "base+addend",
+      "confidence": "observed dynamic tag; presence is not proof of invocation",
+      "file_value": "0x1030 (dynamic tag value; parser VA for ET_DYN)",
+      "final_target": "B + 0x1030 (single function pointer)",
+      "initializer": null,
+      "kind": "dt-init",
+      "loader_condition": "loader must process DT_INIT; runtime address uses B for ET_DYN",
+      "notes": [
+        "single function pointer, not an array",
+        "the tag value is not a symbol value"
+      ],
+      "requires_load_bias": true,
+      "slot": null,
+      "source": "DT_INIT=0x1030"
+    }
+  ],
+  "file": "tools/offline_elf_entry_probe/fixtures/pie-rela.so",
+  "limitations": [
+    "ET_DYN load bias B is chosen at load time (ASLR/loader); no runtime absolute address is computed",
+    "writability is inferred from PT_LOAD PF_W; some loaders may protect arrays or use RELRO, so a truly writable slot at load time is not guaranteed by the file alone",
+    "static entry presence is not proof that the loader will call it"
+  ],
+  "pt_load": [
+    {
+      "filesz": "0x1100",
+      "flags": 5,
+      "index": 0,
+      "memsz": "0x1100",
+      "offset": "0x0",
+      "vaddr": "0x0"
+    },
+    {
+      "filesz": "0x610",
+      "flags": 6,
+      "index": 1,
+      "memsz": "0x610",
+      "offset": "0x1100",
+      "vaddr": "0x1100"
+    }
+  ],
+  "section_headers": {
+    "available": true,
+    "conclusion": "usable section names are present; loader semantics still come from dynamic tags",
+    "count": 10
+  },
+  "warnings": []
+}
