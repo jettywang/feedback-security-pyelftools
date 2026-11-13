@@ -22,6 +22,7 @@ from ..dwarf.dwarf_util import _file_crc32
 from ..dwarf.dwarfinfo import DebugSectionDescriptor, DwarfConfig, DWARFInfo
 from ..ehabi.ehabiinfo import EHABIInfo
 from .constants import SHN_INDICES
+from .core_memory import CoreFile
 from .dynamic import DynamicSection, DynamicSegment
 from .gnuversions import GNUVerDefSection, GNUVerNeedSection, GNUVerSymSection
 from .hash import ELFHashSection, GNUHashSection
@@ -422,6 +423,20 @@ class ELFFile:
             return dwarf_info
         return None
 
+
+    def has_core_file(self) -> bool:
+        """ Check whether this is an ET_CORE file with core address queries.
+        """
+        return self['e_type'] == 'ET_CORE'
+
+    def get_core_file(self) -> CoreFile:
+        """ Return a read-only address query view of this ET_CORE file.
+
+        Raises ELFError when the file is not an ELF core. The returned object
+        combines NT_FILE mappings with the bytes preserved by PT_LOAD segments;
+        it never opens a path named in the core.
+        """
+        return CoreFile(self)
 
     def has_ehabi_info(self) -> bool:
         """ Check whether this file appears to have arm exception handler index table.

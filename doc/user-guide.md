@@ -135,6 +135,39 @@ count and enumerate them. There are also some special segment classes
 that have more information about well-known segments. Take a look at
 `elftools/elf/segments.py` for more details.
 
+### ELF core address queries
+
+An ELF core (`ET_CORE`) records two independent kinds of evidence about the
+crash-time address space. The `NT_FILE` note (a `PT_NOTE` descriptor) lists
+mappings: a virtual range, the offset within the mapped file in units of
+`page_size`, and the name Linux recorded. `PT_LOAD` segments describe what the
+core actually saved: `p_filesz` may be much smaller than `p_memsz`, and may be
+zero.
+
+`ELFFile.get_core_file()` returns a `CoreFile` (in
+`elftools/elf/core_memory.py`) that combines those sources without merging
+them. `CoreFile.resolve(address)` reports, separately, the covering `NT_FILE`
+mappings and the covering `PT_LOAD` segments. `CoreFile.read(address, size)`
+and `CoreFile.readable_range(address)` describe only bytes the core preserves.
+A typical result can therefore be "this address belonged to a file mapping,
+but the core saved none of its bytes".
+
+Ambiguity is preserved rather than guessed:
+
+- Several mappings covering an address are all returned; `file_name` is
+  `None` and `candidate_names` lists every recorded name.
+- Overlapping `PT_LOAD` segments that preserve bytes at the same address yield
+  a `not_unique` status with all candidate segment indices; no byte source is
+  chosen.
+- A name ending in `" (deleted)"` is kept as recorded (`CoreMapping.deleted`
+  and `original_name` expose the distinction).
+- Names never cause **pyelftools** to open a local file. `find_candidates`
+  compares against the core's recorded strings only; matching the name to a
+  local artifact is the caller's decision.
+
+The example `examples/elf_core_address.py` prints these distinctions for a core
+file.
+
 ### Structs and headers
 
 Most objects in ELF and DWARF have \"headers\", and such objects usually

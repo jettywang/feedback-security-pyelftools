@@ -1,0 +1,20 @@
+Address 0x7fa4593ae010
+  kind: file
+  evidence: nt_file, pt_load
+  mapping #3: /lib/x86_64-linux-gnu/libc-2.23.so [0x7fa4593ae000, 0x7fa45956d000) file offset 0
+  PT_LOAD #4: vaddr 0x7fa4593ae000 filesz 0x1000 memsz 0x1bf000
+  readable bytes: [0x7fa4593ae010, 0x7fa4593af000)
+
+Address 0x7fa45956d010
+  kind: file
+  evidence: nt_file, pt_load
+  mapping #4: /lib/x86_64-linux-gnu/libc-2.23.so [0x7fa45956d000, 0x7fa45976d000) file offset 1830912
+  PT_LOAD #5: vaddr 0x7fa45956d000 filesz 0x0 memsz 0x200000
+  readable bytes: not_present
+
+Address 0x7fa45999e010
+  kind: anonymous
+  evidence: pt_load
+  PT_LOAD #14: vaddr 0x7fa45999e000 filesz 0x1000 memsz 0x1000
+  readable bytes: [0x7fa45999e010, 0x7fa45999f000)
+
