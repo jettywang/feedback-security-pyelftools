@@ -10,14 +10,18 @@ from __future__ import annotations
 
 import copy
 import os
+import posixpath
+from bisect import bisect_left
 from functools import cached_property
 from typing import IO, TYPE_CHECKING, Any, NamedTuple
 
 from ..common.exceptions import DWARFError
-from ..common.utils import struct_parse
+from ..common.utils import bytes2str, struct_parse
 from .constants import DW_LNE, DW_LNS
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from ..construct.lib.container import Container
     from .structs import DWARFStructs
 
@@ -85,6 +89,49 @@ class LineState:
         ))
 
 
+# LineTableEntry - one row of the line table, re-indexed for address lookup.
+#
+# The decoded line program is a state machine: only entries that emit a new
+# state are matrix rows, and a row with end_sequence set is a boundary marker
+# rather than a source location. This class keeps the emitted row together
+# with the half-open address interval [address, end_address) for which the
+# row's source location is valid according to DWARF section 6.2.5.2.
+#
+# Rows that share an address (common in optimized code, where several line
+# table records - different files, lines, columns or discriminators - are
+# emitted at the same machine address) all have a non-empty interval only if
+# the address advances later on. The last row at a given address owns the
+# interval; earlier duplicates have address == end_address and can therefore
+# only be matched by an exact-address query.
+#
+# state:
+#   The LineState row emitted by the line program. Never an end_sequence
+#   boundary marker.
+#
+# end_address:
+#   Address of the row that ends this row's interval. It is the address of
+#   the next emitted row within the same sequence, or the address carried by
+#   the sequence's end_sequence marker. Equal to state.address when the row
+#   is followed by another row at the same address.
+#
+# sequence_index:
+#   Zero-based index of the sequence (the run of rows terminated by an
+#   end_sequence marker) this row belongs to.
+class LineTableEntry(NamedTuple):
+    state: LineState
+    end_address: int
+    sequence_index: int
+
+
+# Why a lookup matched a particular line table row. Exact matches take
+# precedence over interval matches: a query address that is itself a row
+# address returns every row emitted at that address, including duplicate rows
+# whose interval is empty, and never the row that merely covers the address
+# through its interval.
+LINE_MATCH_EXACT = 'exact'
+LINE_MATCH_RANGE = 'range'
+
+
 class LineProgram:
     """ Builds a "line table", which is essentially the matrix described
         in section 6.2 of DWARFv3. It's a list of LineState objects,
@@ -133,6 +180,130 @@ class LineProgram:
             with readelf and debugging.
         """
         return self._decode_line_program
+
+    @cached_property
+    def line_table(self) -> list[LineTableEntry]:
+        """ Get the line table re-indexed for address lookup.
+
+            Returns a list of LineTableEntry objects, one per emitted matrix
+            row (end_sequence boundary markers are excluded). Each entry
+            records the half-open address interval [address, end_address) in
+            which its source location is valid and the index of the sequence
+            it belongs to.
+
+            The list keeps the program's emission order. Several entries may
+            share an address; only the last of them can have a non-empty
+            interval. Sequences are kept strictly separate: an
+            end_sequence marker ends the previous sequence and the state
+            machine reset starts a fresh one, so intervals can never span a
+            sequence boundary or borrow state from a previous sequence.
+        """
+        table: list[LineTableEntry] = []
+        sequence_index = 0
+        pending: list[LineState] = []
+
+        def flush(sequence_end: int) -> None:
+            # Assign every pending row the address of the row that follows it
+            # as the end of its interval. Rows sharing an address get an empty
+            # interval, which is what keeps exact-address duplicates reachable.
+            for position, row in enumerate(pending):
+                end_address = (
+                    pending[position + 1].address
+                    if position + 1 < len(pending)
+                    else sequence_end)
+                table.append(LineTableEntry(row, end_address, sequence_index))
+
+        for entry in self._decode_line_program:
+            state = entry.state
+            if state is None:
+                continue
+            if state.end_sequence:
+                # The end_sequence row is a boundary marker: its address is
+                # one past the last instruction of the sequence and its other
+                # registers are meaningless, so it is not itself a location.
+                flush(state.address)
+                pending = []
+                sequence_index += 1
+            else:
+                pending.append(state)
+
+        # Be tolerant of a truncated program that has no end_sequence marker:
+        # the trailing rows are still usable for exact-address lookups.
+        if pending:
+            flush(pending[-1].address)
+        return table
+
+    def lookup_address(self, address: int) -> list[tuple[LineTableEntry, str]]:
+        """ Find all line table rows in this program that describe address.
+
+            Returns a list of (LineTableEntry, reason) pairs, in emission
+            order. The reason is one of:
+              - LINE_MATCH_EXACT: the row's own address equals the queried
+                address. Every row emitted at the address is returned,
+                including duplicate rows with different files, lines, columns
+                or discriminators and rows with an empty interval.
+              - LINE_MATCH_RANGE: the address falls inside the row's
+                half-open interval [address, end_address). At most one row
+                per sequence can match this way, and it is only returned when
+                no row is emitted exactly at the queried address.
+
+            The result is computed from the indexed line table alone, so
+            repeatedly querying addresses in any order always gives the same
+            answer. Rows from a previous sequence can never match an address
+            of a later one: each sequence is bounded by its own
+            end_sequence marker.
+        """
+        table = self.line_table
+        # First row whose address is greater than the queried address; all
+        # candidates are at or before this insertion point.
+        insertion = bisect_left(
+            table, address + 1, key=lambda entry: entry.state.address)
+
+        exact: list[tuple[LineTableEntry, str]] = []
+        range_matches: list[tuple[LineTableEntry, str]] = []
+        for entry in table[:insertion]:
+            if entry.state.address == address:
+                exact.append((entry, LINE_MATCH_EXACT))
+            elif entry.state.address < address < entry.end_address:
+                range_matches.append((entry, LINE_MATCH_RANGE))
+
+        # Exact matches win outright: an address that is itself a row address
+        # is never also attributed to the rows whose intervals contain it.
+        if exact:
+            return exact
+        return range_matches
+
+    def filename_for_state(self, state: LineState) -> str | None:
+        """ Resolve the source file name recorded by a LineState row.
+
+            The file index stored in the row is interpreted against the
+            header's file table, which already includes files appended by
+            DW_LNE.define_file while the program was decoded. File and
+            directory indices are 1-based before DWARFv5 and 0-based in
+            DWARFv5. Returns None when the row carries no usable file index
+            or the file table does not contain it.
+        """
+        header = self.header
+        file_entries = header['file_entry']
+        file_index = state.file - (1 if header.version < 5 else 0)
+        if not 0 <= file_index < len(file_entries):
+            return None
+
+        file_entry = file_entries[file_index]
+        name = file_entry.name
+        if name is None:
+            return None
+        name = bytes2str(name)
+
+        directories: Sequence[Any] = header.get('include_directory', ())
+        dir_index = file_entry['dir_index']
+        if header.version < 5:
+            if dir_index == 0:
+                return name
+            dir_index -= 1
+        if not 0 <= dir_index < len(directories):
+            return name
+        return posixpath.join(bytes2str(directories[dir_index]), name)
 
     #------ PRIVATE ------#
 

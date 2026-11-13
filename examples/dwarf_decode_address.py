@@ -31,7 +31,7 @@ def process_file(filename, address):
         file, line = decode_file_line(dwarfinfo, address)
 
         print('Function:', bytes2str(funcname))
-        print('File:', bytes2str(file))
+        print('File:', file)
         print('Line:', line)
 
 
@@ -70,34 +70,21 @@ def decode_funcname(dwarfinfo, address):
 
 
 def decode_file_line(dwarfinfo, address):
-    # Go over all the line programs in the DWARF information, looking for
-    # one that describes the given address.
-    for CU in dwarfinfo.iter_CUs():
-        # First, look at line programs to find the file/line for the address
-        lineprog = dwarfinfo.line_program_for_CU(CU)
-        delta = 1 if lineprog.header.version < 5 else 0
-        prevstate = None
-        for entry in lineprog.get_entries():
-            # We're interested in those entries where a new state is assigned
-            if entry.state is None:
-                continue
-            # Looking for a range of addresses in two consecutive states that
-            # contain the required address.
-            if prevstate and prevstate.address <= address < entry.state.address:
-                filename = lineprog['file_entry'][prevstate.file - delta].name
-                line = prevstate.line
-                return filename, line
-            if entry.state.end_sequence:
-                # For the state with `end_sequence`, `address` means the address
-                # of the first byte after the target machine instruction
-                # sequence and other information is meaningless. We clear
-                # prevstate so that it's not used in the next iteration. Address
-                # info is used in the above comparison to see if we need to use
-                # the line information for the prevstate.
-                prevstate = None
-            else:
-                prevstate = entry.state
-    return None, None
+    # Find every source location that describes the given address. Optimized
+    # code can map one address to several line table rows (duplicate rows with
+    # different files, lines, columns or discriminators, or overlapping
+    # compilation units), so the lookup returns all candidates instead of
+    # silently keeping the first or last one.
+    candidates = dwarfinfo.source_locations_for_address(address)
+    if not candidates:
+        return None, None
+
+    # This example keeps its historical single-result output, so it reports
+    # an exact row when the address has one, otherwise the row whose interval
+    # covers it. Tools that need every row can iterate the full candidate
+    # list and inspect match_reason, discriminator and the address interval.
+    chosen = candidates[0]
+    return chosen.filename, chosen.line
 
 
 if __name__ == '__main__':

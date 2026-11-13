@@ -21,6 +21,10 @@ from .callframe import CallFrameInfo
 from .compileunit import CompileUnit
 from .dwarf_util import _get_base_offset
 from .lineprogram import LineProgram
+from .location import (
+    LocationCandidate,
+    source_locations_for_address,
+)
 from .locationlists import LocationLists, LocationListsPair
 from .namelut import NameLUT
 from .ranges import RangeLists, RangeListsPair
@@ -355,6 +359,35 @@ class DWARFInfo:
                     top_DIE.attributes['DW_AT_stmt_list'].value, CU.structs)
         else:
             return None
+
+    def source_locations_for_address(
+        self,
+        address: int,
+    ) -> tuple[LocationCandidate, ...]:
+        """ Find all source locations that describe the given address.
+
+            Every compilation unit's line program is consulted, so CUs whose
+            ranges overlap each contribute their own candidates instead of
+            one silently hiding another. Within a line program, duplicate
+            rows emitted at the same address (different files, lines, columns
+            or discriminators) are all returned, and rows matched only
+            through their address interval are reported separately with their
+            match reason and the interval used.
+
+            Returns a tuple of LocationCandidate objects; the tuple is empty
+            when no line program describes the address. See
+            elftools.dwarf.location for the candidate fields and the semantics
+            of exact versus interval matches. The lookup is stateless:
+            querying addresses in any order always yields the same result,
+            and a sequence terminated by end_sequence can never leak its
+            rows into the following sequence.
+        """
+        line_programs = []
+        for cu in self.iter_CUs():
+            line_program = self.line_program_for_CU(cu)
+            if line_program is not None:
+                line_programs.append((cu, line_program))
+        return source_locations_for_address(line_programs, address)
 
     def has_CFI(self) -> bool:
         """ Does this dwarf info have a dwarf_frame CFI section?
