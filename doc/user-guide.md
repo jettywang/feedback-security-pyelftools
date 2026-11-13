@@ -186,6 +186,37 @@ The [type references example](../examples/dwarf_type_references.py) demonstrates
 following these references through typedefs and other types, and displays both
 the stored values and the resolved DIE offsets.
 
+### Evaluating variable locations
+
+`elftools/dwarf/location_eval.py` turns a variable's `DW_AT_location`
+expression into a concrete answer for a given instruction address. It is a
+*restricted, hosted* evaluator: pyelftools only decodes the DWARF, while all
+target access is supplied by the caller through a `LocationContext`
+(register contents, memory reads, frame base / CFA, address-index
+resolution). It never executes the target program.
+
+The flow is:
+
+* `LocationParser.parse_from_attribute` produces a single `LocationExpr` or
+  a location-list entry list.
+* `select_expression` picks the expression whose half-open address range
+  covers the requested PC (honoring base-address and default-location
+  entries).
+* `LocationExpressionEvaluator.locate()` returns the storage description
+  (register, memory address, or a list of `piece`/`bit_piece` fragments),
+  while `materialize()` reads the actual value via the context. Both record
+  every target memory range they touched in `LocationResult.memory_accesses`.
+  `LocationResult.is_value` distinguishes a storage location from a literal
+  value (`DW_OP_stack_value` / `DW_OP_implicit_value`).
+* `VariableLocator` wraps all three steps and takes a variable DIE directly.
+
+When an expression needs something the context does not provide, or uses an
+opcode the restricted evaluator does not implement, evaluation raises
+`LocationEvalError` carrying a machine-readable `EvalReason`
+(`unsupported_operation`, `stack_underflow`, `value_out_of_range`,
+`missing_register`, `missing_memory`, `missing_context`, and so on) instead
+of guessing.
+
 Contrary to ELF with its structured set of sections and segments, DWARF
 information is quite ad hoc for the special needs it serves. Each DWARF
 section contains different information that has to be decoded and
