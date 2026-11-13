@@ -193,3 +193,45 @@ interpreted in a special manner. **pyelftools** attempts to provide a
 convenient Pythonic API for this information whenever possible. There\'s
 no way around it - to even understand the API one must have some grasp
 of the [DWARF standard](https://dwarfstd.org/).
+
+### Verifying supplementary debug files
+
+A stripped ELF may refer to an external file carrying its debug
+information, but the referenced basename alone is not trustworthy:
+several files can share a name without being the intended companion.
+The `elftools.elf.debugsupplement` module therefore lets the caller hand
+in candidate *streams* and verifies the identifier relationship before
+any candidate is accepted:
+
+- `.gnu_debuglink` &rarr; CRC32 of the whole candidate file,
+- `NT_GNU_BUILD_ID` &rarr; byte-identical build ID note,
+- split DWARF &rarr; the 64-bit DWO ID (DWARF 5 CU header, or the
+  DWARF 4 GNU `DW_AT_GNU_dwo_id` extension).
+
+Filenames supplied with a candidate are recorded as hints only and never
+suffice on their own. The resolver opens no paths, performs no directory
+searches and makes no network calls &mdash; it only reads the streams it
+is given. Each examination produces a `MatchEvidence` record, so a
+forensic report can show why every candidate was matched or rejected.
+Duplicate (byte-identical) candidates collapse into a single
+relationship, and a supplementary reference that points back into the
+active resolution chain is rejected as a cycle instead of looping.
+
+```python
+from elftools.elf.elffile import ELFFile
+from elftools.elf.debugsupplement import DebugCandidate, DebugInfoResolver
+
+primary = ELFFile(open('app', 'rb'))
+candidates = [
+    DebugCandidate('evidence-1', open('candidate.debug', 'rb'),
+                   referenced_name='app.debug'),
+]
+report = DebugInfoResolver(primary, candidates).resolve_all()
+for result in report.results.values():
+    if result.resolved:
+        companion = ELFFile(result.matched_stream)
+    else:
+        # No verified supplement: addresses stay unresolved rather than
+        # being explained from an unverified file.
+        ...
+```

@@ -1,6 +1,16 @@
 Changelog
 =========
 
++ Unreleased
+
+  - New ``elftools.elf.debugsupplement`` module: caller-driven matching of
+    supplementary debug files. Candidates are supplied as streams and verified
+    by identifier (.gnu_debuglink CRC32, NT_GNU_BUILD_ID, split-DWARF DWO ID),
+    never by filename alone. Every accept/reject decision is recorded as
+    evidence, with explicit protection against duplicate candidates and
+    cyclic supplementary references. No filesystem traversal or network
+    access is performed.
+
 + Starting with version 0.31, please use the GitHub UI
   at https://github.com/eliben/pyelftools/tags
   to compare tags in order to find out what changed.
