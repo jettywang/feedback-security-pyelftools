@@ -1,0 +1,21 @@
+id                     class        outcome   bias        n   names/error
+-------------------------------------------------------------------------------------------------------
+base_gnu               DERIVED      OK        exact       4  ['', 'alpha', 'beta', 'gamma']
+base_sysv              DECLARED     OK        exact       4  ['', 'alpha', 'beta', 'gamma']
+base_fallback          DERIVED      OK        exact       4  ['', 'alpha', 'beta', 'gamma']
+gnu_sparse_bucket      INSUFFICIENT RAISED    UNAVAILABLE ELFParseError: expected read length 8, found 4
+gnu_no_terminator      INSUFFICIENT RAISED    UNAVAILABLE ELFParseError: expected read length 8, found 4
+gnu_chain_bss          INSUFFICIENT RAISED    UNAVAILABLE ELFParseError: expected read length 8, found 4
+sysv_inflate           DECLARED     OK        INFLATED    7  ['', 'alpha', 'beta', 'gamma', '', '', '']
+sysv_deflate           DECLARED     OK        TRUNCATED   2  ['', 'alpha']
+sysv_inflate_eof       INSUFFICIENT RAISED    UNAVAILABLE ELFParseError: expected read length 8, found 4
+fallback_dup_strtab    INSUFFICIENT OK        TRUNCATED   1  ['']
+fallback_dup_symtab    INSUFFICIENT OK        exact       4  ['', 'alpha', 'beta', 'gamma']
+fallback_truncated     INSUFFICIENT RAISED    UNAVAILABLE ELFParseError: expected read length 8, found 0
+gnu_symtab_bss         INSUFFICIENT RAISED    UNAVAILABLE ELFError: Segment does not contain DT_SYMTAB.
+fallback_strtab_bss    INSUFFICIENT CRASH     UNAVAILABLE AssertionError: 
+fallback_bss_boundary  DERIVED      OK        exact       4  ['', 'alpha', 'beta', 'gamma']
+gnu_drop_null          DERIVED      OK        exact       4  ['', 'alpha', 'beta', 'gamma']
+gnu_zero_buckets       INSUFFICIENT CRASH     UNAVAILABLE ValueError: max() iterable argument is empty
+
+Wrote audit_sectionless_elf/results/experiment_results.json

@@ -1,0 +1,268 @@
+[
+  {
+    "outcome": "OK",
+    "num_symbols": 4,
+    "names": [
+      "",
+      "alpha",
+      "beta",
+      "gamma"
+    ],
+    "error_type": null,
+    "error_msg": null,
+    "id": "base_gnu",
+    "description": "well-formed GNU hash",
+    "classification": "DERIVED",
+    "file": "samples/base_gnu.elf",
+    "bytes": 4376,
+    "bias": "exact"
+  },
+  {
+    "outcome": "OK",
+    "num_symbols": 4,
+    "names": [
+      "",
+      "alpha",
+      "beta",
+      "gamma"
+    ],
+    "error_type": null,
+    "error_msg": null,
+    "id": "base_sysv",
+    "description": "well-formed SYSV hash",
+    "classification": "DECLARED",
+    "file": "samples/base_sysv.elf",
+    "bytes": 4364,
+    "bias": "exact"
+  },
+  {
+    "outcome": "OK",
+    "num_symbols": 4,
+    "names": [
+      "",
+      "alpha",
+      "beta",
+      "gamma"
+    ],
+    "error_type": null,
+    "error_msg": null,
+    "id": "base_fallback",
+    "description": "no hash; nearest-pointer boundary",
+    "classification": "DERIVED",
+    "file": "samples/base_fallback.elf",
+    "bytes": 4360,
+    "bias": "exact"
+  },
+  {
+    "outcome": "RAISED",
+    "num_symbols": null,
+    "names": null,
+    "error_type": "ELFParseError",
+    "error_msg": "expected read length 8, found 4",
+    "id": "gnu_sparse_bucket",
+    "description": "highest bucket index exceeds real chain",
+    "classification": "INSUFFICIENT",
+    "file": "samples/gnu_sparse_bucket.elf",
+    "bytes": 4376,
+    "bias": "UNAVAILABLE"
+  },
+  {
+    "outcome": "RAISED",
+    "num_symbols": null,
+    "names": null,
+    "error_type": "ELFParseError",
+    "error_msg": "expected read length 8, found 4",
+    "id": "gnu_no_terminator",
+    "description": "final chain word lacks end-of-chain bit",
+    "classification": "INSUFFICIENT",
+    "file": "samples/gnu_no_terminator.elf",
+    "bytes": 4376,
+    "bias": "UNAVAILABLE"
+  },
+  {
+    "outcome": "RAISED",
+    "num_symbols": null,
+    "names": null,
+    "error_type": "ELFParseError",
+    "error_msg": "expected read length 8, found 4",
+    "id": "gnu_chain_bss",
+    "description": "chain walk reaches zero-fill (BSS) region",
+    "classification": "INSUFFICIENT",
+    "file": "samples/gnu_chain_bss.elf",
+    "bytes": 4376,
+    "bias": "UNAVAILABLE"
+  },
+  {
+    "outcome": "OK",
+    "num_symbols": 7,
+    "names": [
+      "",
+      "alpha",
+      "beta",
+      "gamma",
+      "",
+      "",
+      ""
+    ],
+    "error_type": null,
+    "error_msg": null,
+    "id": "sysv_inflate",
+    "description": "nchains enlarged beyond real symbols",
+    "classification": "DECLARED",
+    "file": "samples/sysv_inflate.elf",
+    "bytes": 4376,
+    "bias": "INFLATED"
+  },
+  {
+    "outcome": "OK",
+    "num_symbols": 2,
+    "names": [
+      "",
+      "alpha"
+    ],
+    "error_type": null,
+    "error_msg": null,
+    "id": "sysv_deflate",
+    "description": "nchains shrunk below real symbols",
+    "classification": "DECLARED",
+    "file": "samples/sysv_deflate.elf",
+    "bytes": 4356,
+    "bias": "TRUNCATED"
+  },
+  {
+    "outcome": "RAISED",
+    "num_symbols": null,
+    "names": null,
+    "error_type": "ELFParseError",
+    "error_msg": "expected read length 8, found 4",
+    "id": "sysv_inflate_eof",
+    "description": "inflated nchains runs past end of file",
+    "classification": "INSUFFICIENT",
+    "file": "samples/sysv_inflate_eof.elf",
+    "bytes": 4524,
+    "bias": "UNAVAILABLE"
+  },
+  {
+    "outcome": "OK",
+    "num_symbols": 1,
+    "names": [
+      ""
+    ],
+    "error_type": null,
+    "error_msg": null,
+    "id": "fallback_dup_strtab",
+    "description": "duplicate lower DT_STRTAB pointer",
+    "classification": "INSUFFICIENT",
+    "file": "samples/fallback_dup_strtab.elf",
+    "bytes": 4376,
+    "bias": "TRUNCATED"
+  },
+  {
+    "outcome": "OK",
+    "num_symbols": 4,
+    "names": [
+      "",
+      "alpha",
+      "beta",
+      "gamma"
+    ],
+    "error_type": null,
+    "error_msg": null,
+    "id": "fallback_dup_symtab",
+    "description": "duplicate lower DT_SYMTAB pointer",
+    "classification": "INSUFFICIENT",
+    "file": "samples/fallback_dup_symtab.elf",
+    "bytes": 4376,
+    "bias": "exact"
+  },
+  {
+    "outcome": "RAISED",
+    "num_symbols": null,
+    "names": null,
+    "error_type": "ELFParseError",
+    "error_msg": "expected read length 8, found 0",
+    "id": "fallback_truncated",
+    "description": "file truncated before derived boundary",
+    "classification": "INSUFFICIENT",
+    "file": "samples/fallback_truncated.elf",
+    "bytes": 4312,
+    "bias": "UNAVAILABLE"
+  },
+  {
+    "outcome": "RAISED",
+    "num_symbols": null,
+    "names": null,
+    "error_type": "ELFError",
+    "error_msg": "Segment does not contain DT_SYMTAB.",
+    "id": "gnu_symtab_bss",
+    "description": "DT_SYMTAB points into zero-fill range",
+    "classification": "INSUFFICIENT",
+    "file": "samples/gnu_symtab_bss.elf",
+    "bytes": 4376,
+    "bias": "UNAVAILABLE"
+  },
+  {
+    "outcome": "CRASH",
+    "num_symbols": null,
+    "names": null,
+    "error_type": "AssertionError",
+    "error_msg": "",
+    "traceback": "Traceback (most recent call last):\n  File \"/Users/apple/Documents/用户反馈项目/run-control/first-five/jobs/FB-20261113-SEC10-051/workspace/audit_sectionless_elf/run_experiments.py\", line 36, in probe\n    n = dyn.num_symbols()\n        ^^^^^^^^^^^^^^^^^\n  File \"/Users/apple/Documents/用户反馈项目/run-control/first-five/jobs/FB-20261113-SEC10-051/workspace/elftools/elf/dynamic.py\", line 312, in num_symbols\n    return self._num_symbols\n           ^^^^^^^^^^^^^^^^^\n  File \"/Users/apple/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/functools.py\", line 998, in __get__\n    val = self.func(instance)\n          ^^^^^^^^^^^^^^^^^^^\n  File \"/Users/apple/Documents/用户反馈项目/run-control/first-five/jobs/FB-20261113-SEC10-051/workspace/elftools/elf/dynamic.py\", line 337, in _num_symbols\n    for tag in self.iter_tags():\n               ^^^^^^^^^^^^^^^^\n  File \"/Users/apple/Documents/用户反馈项目/run-control/first-five/jobs/FB-20261113-SEC10-051/workspace/elftools/elf/dynamic.py\", line 202, in iter_tags\n    yield DynamicTag(tag, self._get_stringtable())\n                          ^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/apple/Documents/用户反馈项目/run-control/first-five/jobs/FB-20261113-SEC10-051/workspace/elftools/elf/dynamic.py\", line 183, in _get_stringtable\n    assert isinstance(self._stringtable, _StringTable)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError\n",
+    "id": "fallback_strtab_bss",
+    "description": "DT_STRTAB points into zero-fill range",
+    "classification": "INSUFFICIENT",
+    "file": "samples/fallback_strtab_bss.elf",
+    "bytes": 4360,
+    "bias": "UNAVAILABLE"
+  },
+  {
+    "outcome": "OK",
+    "num_symbols": 4,
+    "names": [
+      "",
+      "alpha",
+      "beta",
+      "gamma"
+    ],
+    "error_type": null,
+    "error_msg": null,
+    "id": "fallback_bss_boundary",
+    "description": "PT_LOAD end boundary sits in zero-fill",
+    "classification": "DERIVED",
+    "file": "samples/fallback_bss_boundary.elf",
+    "bytes": 4360,
+    "bias": "exact"
+  },
+  {
+    "outcome": "OK",
+    "num_symbols": 4,
+    "names": [
+      "",
+      "alpha",
+      "beta",
+      "gamma"
+    ],
+    "error_type": null,
+    "error_msg": null,
+    "id": "gnu_drop_null",
+    "description": "DT_NULL terminator removed",
+    "classification": "DERIVED",
+    "file": "samples/gnu_drop_null.elf",
+    "bytes": 4360,
+    "bias": "exact"
+  },
+  {
+    "outcome": "CRASH",
+    "num_symbols": null,
+    "names": null,
+    "error_type": "ValueError",
+    "error_msg": "max() iterable argument is empty",
+    "traceback": "Traceback (most recent call last):\n  File \"/Users/apple/Documents/用户反馈项目/run-control/first-five/jobs/FB-20261113-SEC10-051/workspace/audit_sectionless_elf/run_experiments.py\", line 36, in probe\n    n = dyn.num_symbols()\n        ^^^^^^^^^^^^^^^^^\n  File \"/Users/apple/Documents/用户反馈项目/run-control/first-five/jobs/FB-20261113-SEC10-051/workspace/elftools/elf/dynamic.py\", line 312, in num_symbols\n    return self._num_symbols\n           ^^^^^^^^^^^^^^^^^\n  File \"/Users/apple/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/functools.py\", line 998, in __get__\n    val = self.func(instance)\n          ^^^^^^^^^^^^^^^^^^^\n  File \"/Users/apple/Documents/用户反馈项目/run-control/first-five/jobs/FB-20261113-SEC10-051/workspace/elftools/elf/dynamic.py\", line 321, in _num_symbols\n    return gnu_hash_section.get_number_of_symbols()\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/apple/Documents/用户反馈项目/run-control/first-five/jobs/FB-20261113-SEC10-051/workspace/elftools/elf/hash.py\", line 155, in get_number_of_symbols\n    max_idx = max(self.params['buckets'])\n              ^^^^^^^^^^^^^^^^^^^^^^^^^^^\nValueError: max() iterable argument is empty\n",
+    "id": "gnu_zero_buckets",
+    "description": "nbuckets corrupted to zero (max() on empty)",
+    "classification": "INSUFFICIENT",
+    "file": "samples/gnu_zero_buckets.elf",
+    "bytes": 4376,
+    "bias": "UNAVAILABLE"
+  }
+]

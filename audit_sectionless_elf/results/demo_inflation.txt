@@ -1,0 +1,10 @@
+== ELF64 little-endian, no section headers ==
+  control              : num=4 names=['', 'alpha', 'beta', 'gamma']
+  unterminated chain  : at-EOF -> RAISED ELFParseError; with-trailing-data -> num=11 (+7 phantom) ['', 'alpha', 'beta', 'gamma', '', '', '', '', '', '', '']
+  sparse high bucket  : at-EOF -> RAISED ELFParseError; with-trailing-data -> num=11 (+7 phantom) ['', 'alpha', 'beta', 'gamma', '', '', '', '', '', '', '']
+
+== ELF32 little-endian, no section headers ==
+  control              : num=4 names=['', 'alpha', 'beta', 'gamma']
+  unterminated chain  : at-EOF -> num=9; with-trailing-data -> num=9 (+5 phantom) ['', 'alpha', 'beta', 'gamma', '', '', 'libc.so.6', '', '\x01']
+  sparse high bucket  : at-EOF -> num=9; with-trailing-data -> num=9 (+5 phantom) ['', 'alpha', 'beta', 'gamma', '', '', 'libc.so.6', '', '\x01']
+
