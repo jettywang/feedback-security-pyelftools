@@ -126,6 +126,33 @@ interacting with the symbol table. There are other special sections
 the same file) and `RelocationSection` (in
 `elftools/elf/relocation.py`).
 
+### RELR compressed relocations
+
+A `SHT_RELR` section is represented by `RelrRelocationSection`, which
+stores relative relocations as one anchor word followed by bitmaps. Its
+legacy `iter_relocations()` interface returns `Relocation` objects whose
+`r_offset` is the target virtual address.
+
+For firmware review, `iter_expanded_relocations()` returns
+`RelrExpandedRelocation` records with the original RELR word
+(`relr_entry`, `relr_entry_index`, `relr_entry_offset` and
+`source.bitmap_bit`), the target virtual address, and the original
+addend when it can be read from the file. It is available both from the
+section and from the `'RELR'` table returned by
+`get_relocation_tables()` on a `DynamicSection` or `DynamicSegment`.
+
+The addend is the pointer-sized word stored at the target address, so it
+is only reported when `status` is `'file'`: exactly one `PT_LOAD`
+provides a complete file-backed word. Other statuses are
+`'zero_fill'` (the target lies in `p_memsz > p_filesz` memory that has
+no file bytes), `'partial_mapping'` (the word crosses into zero-filled
+memory), `'multiple_mappings'` (more than one `PT_LOAD` maps the target;
+the addend is set only if every mapping selects the same readable file
+word), `'unmapped'` (no `PT_LOAD` maps the complete word), and
+`'outside_file'` (a mapping exists but the file is truncated before the
+word ends). `file_offset` is set only when a file-backed mapping is
+identified; the virtual address is never used directly as a file offset.
+
 ### ELF segments
 
 Similarly to sections, an ELF segment has a class in **pyelftools** to

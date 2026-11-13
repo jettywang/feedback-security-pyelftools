@@ -12,7 +12,7 @@ from functools import cached_property
 from typing import IO, TYPE_CHECKING, Any, NamedTuple, Protocol
 
 from ..common.construct_utils import ULEB128
-from ..common.exceptions import ELFRelocationError
+from ..common.exceptions import ELFParseError, ELFRelocationError
 from ..common.utils import elf_assert, struct_parse
 from ..construct import Container
 from .enums import (
@@ -33,6 +33,7 @@ if TYPE_CHECKING:
     from collections.abc import Iterator, Mapping
 
     from .elffile import ELFFile
+    from .segments import Segment
 
 
 class Relocation:
@@ -131,6 +132,91 @@ class RelocationSection(Section, RelocationTable):
                 header['sh_type'], self.entry_size))
 
 
+class RelrEntry(NamedTuple):
+    """ A single word from a RELR table, retained as provenance for the
+        relocations it expands to.
+    """
+    index: int
+    offset: int
+    value: int
+    is_bitmap: bool
+    # Bit number in the bitmap whose set bit produced this relocation. Bit 0
+    # is the tag bit and is never used for a target; anchors use None.
+    bitmap_bit: int | None
+
+
+class RelrExpandedRelocation(NamedTuple):
+    """ One relocation produced by expanding a RELR table.
+
+        target_address is the virtual address whose pointer is relocated. It
+        is not a file offset. file_offset is the corresponding offset in the
+        file when target_address has exactly one file-backed mapping.
+
+        addend is the pointer-sized word stored at the target address (RELR,
+        like REL, keeps its addend in place). It is None when the word cannot
+        be read unambiguously; status explains why. mapped_offsets lists the
+        distinct file offsets of the PT_LOAD mappings that fully contain the
+        target word. An addend is reported only when those mappings agree.
+    """
+    target_address: int
+    addend: int | None
+    status: str
+    file_offset: int | None
+    source: RelrEntry
+    mapped_offsets: tuple[int, ...]
+
+    # Exactly one PT_LOAD provides a readable file-backed word.
+    STATUS_FILE = 'file'
+    # The target lies in the zero-filled part of a PT_LOAD (p_memsz > p_filesz).
+    STATUS_ZERO_FILL = 'zero_fill'
+    # Part of the pointer-sized target is in a PT_LOAD's file-backed range and
+    # part is beyond it, so no complete word can be read.
+    STATUS_PARTIAL_MAPPING = 'partial_mapping'
+    # More than one PT_LOAD maps the target. file_offset and addend are set
+    # only when every mapping selects the same readable file-backed word.
+    STATUS_MULTIPLE_MAPPINGS = 'multiple_mappings'
+    # No PT_LOAD maps the complete target word.
+    STATUS_UNMAPPED = 'unmapped'
+    # A mapping exists, but the word extends past the end of the file.
+    STATUS_OUTSIDE_FILE = 'outside_file'
+
+    @property
+    def r_offset(self) -> int:
+        """ The target virtual address, matching Relocation's field name.
+        """
+        return self.target_address
+
+    @property
+    def target(self) -> int:
+        """ Alias for target_address.
+        """
+        return self.target_address
+
+    @property
+    def original_addend(self) -> int | None:
+        """ The addend as stored at the target address, before relocation.
+        """
+        return self.addend
+
+    @property
+    def relr_entry(self) -> int:
+        """ The original RELR word that produced this relocation.
+        """
+        return self.source.value
+
+    @property
+    def relr_entry_offset(self) -> int:
+        """ File offset of the original RELR word.
+        """
+        return self.source.offset
+
+    @property
+    def relr_entry_index(self) -> int:
+        """ Index of the original RELR word in the table.
+        """
+        return self.source.index
+
+
 class RelrRelocationTable:
     """ RELR compressed relocation table. This stores relative relocations
         in a compressed format. An entry with an even value serves as an
@@ -141,65 +227,205 @@ class RelrRelocationTable:
         relocations).
     """
 
-    def __init__(self, elffile: ELFFile, offset: int, size: int, entrysize: int) -> None:
+    def __init__(self, elffile: ELFFile, offset: int | None, size: int,
+                 entrysize: int) -> None:
         self._elffile = elffile
         self._offset = offset
         self._size = size
         self._relr_struct = self._elffile.structs.Elf_Relr
         self._entrysize = self._relr_struct.sizeof()
+        self._address_size = self._elffile.structs.Elf_addr('').sizeof()
 
         elf_assert(self._entrysize == entrysize,
             f'Expected RELR entry size to be {self._entrysize}, got {entrysize}')
 
-    def iter_relocations(self) -> Iterator[Relocation]:
-        """ Yield all the relocations in the section
-        """
+    def _iter_relr_entries(self) -> Iterator[tuple[RelrEntry, int]]:
+        """ Decode the table into (provenance entry, target address) pairs.
 
-        # If DT_RELRSZ is zero, offset is meaningless and could be None.
-        if self._size == 0:
+            An anchor yields only its own relocation. Each set bit in a bitmap
+            yields one relocation whose target is computed from the preceding
+            anchor, using this table's word size.
+        """
+        # DT_RELRSZ may be zero, and a dynamic table whose address has no
+        # PT_LOAD file mapping has no offset. Either way there is nothing to
+        # decode.
+        offset = self._offset
+        if offset is None or self._size <= 0:
             return
 
-        limit = self._offset + self._size
-        relr = self._offset
-        # The addresses of relocations in a bitmap are calculated from a base
-        # value provided in an initial 'anchor' relocation.
+        # Bit 0 of a bitmap entry is the tag that distinguishes it from an
+        # anchor, so each bitmap describes (word_bits - 1) addresses.
+        bitmap_capacity = 8 * self._entrysize - 1
+        limit = offset + self._size
         base: int | None = None
-        while relr < limit:
+        index = 0
+        relr = offset
+        while relr + self._entrysize <= limit:
             entry = struct_parse(self._relr_struct,
                                  self._elffile.stream,
                                  stream_pos=relr)
-            entry_offset: int = entry['r_offset']
-            if (entry_offset & 1) == 0:
-                # We found an anchor, take the current value as the base address
-                # for the following bitmaps and move the 'where' pointer to the
-                # beginning of the first bitmap.
-                base = entry_offset
-                base += self._entrysize
-                yield Relocation(entry, self._elffile)
+            value: int = entry['r_offset']
+            if (value & 1) == 0:
+                # An anchor supplies the address of its own relocation and
+                # the base for the bitmaps that follow.
+                source = RelrEntry(index, relr, value, False, None)
+                yield source, value
+                base = value + self._address_size
             else:
-                # We're processing a bitmap.
                 elf_assert(base is not None, 'RELR bitmap without base address')
                 assert base is not None
-                i = 0
-                while True:
-                    # Iterate over all bits except the least significant one.
-                    entry_offset = (entry_offset >> 1)
-                    if entry_offset == 0:
-                        break
-                    # if the current LSB is set, we have a relocation at the
-                    # corresponding address so generate a Relocation with the
-                    # matching offset
-                    if (entry_offset & 1) != 0:
-                        calc_offset = base + i * self._entrysize
-                        yield Relocation(Container(r_offset = calc_offset),
-                                         self._elffile)
-                    i += 1
-                # Advance 'base' past the current bitmap (8 == CHAR_BIT). There
-                # are 63 (or 31 for 32-bit ELFs) entries in each bitmap, and
-                # every bit corresponds to an ELF_addr-sized relocation.
-                base += (8 * self._entrysize - 1) * self._elffile.structs.Elf_addr('').sizeof()
-            # Advance to the next entry
+                # Skip the tag bit; bit i then selects base + i * address
+                # size for i in 0..bitmap_capacity-1. Empty bitmaps only
+                # advance the base.
+                for bit in range(1, bitmap_capacity + 1):
+                    if value & (1 << bit):
+                        source = RelrEntry(index, relr, value, True, bit)
+                        yield source, base + (bit - 1) * self._address_size
+                base += bitmap_capacity * self._address_size
             relr += self._entrysize
+            index += 1
+
+    def _load_segments(self) -> list[Segment]:
+        return list(self._elffile.iter_segments(type='PT_LOAD'))
+
+    @staticmethod
+    def _file_length(elffile: ELFFile) -> int:
+        stream = elffile.stream
+        pos = stream.tell()
+        stream.seek(0, 2)
+        length = stream.tell()
+        stream.seek(pos)
+        return length
+
+    def _read_addend(self, file_offset: int, file_length: int) -> int | None:
+        if file_offset < 0 or file_offset + self._address_size > file_length:
+            return None
+        stream = self._elffile.stream
+        try:
+            stream.seek(file_offset)
+        except (OverflowError, ValueError):
+            return None
+        if len(stream.read(self._address_size)) != self._address_size:
+            return None
+        try:
+            return struct_parse(
+                self._elffile.structs.Elf_addr(''),
+                stream,
+                stream_pos=file_offset)
+        except ELFParseError:
+            # The range was checked above; treat any remaining parse failure
+            # (for example, a malformed stream) as an unreadable addend rather
+            # than aborting expansion of the rest of the table.
+            return None
+
+    def _classify_target(
+        self,
+        target_address: int,
+        loads: list[Segment],
+        file_length: int,
+    ) -> tuple[str, int | None, int | None, tuple[int, ...]]:
+        """ Map a target virtual address to file bytes and read its addend.
+
+            Only PT_LOAD file ranges are used; the virtual address is never
+            treated as a file offset.
+        """
+        end_address = target_address + self._address_size
+        containing = [
+            segment for segment in loads
+            if (target_address >= segment['p_vaddr'] and
+                end_address <= segment['p_vaddr'] + segment['p_memsz'])
+        ]
+        if not containing:
+            return (RelrExpandedRelocation.STATUS_UNMAPPED, None, None, ())
+
+        file_offsets = []
+        for segment in containing:
+            file_end = segment['p_vaddr'] + segment['p_filesz']
+            if end_address <= file_end:
+                file_offsets.append(
+                    target_address - segment['p_vaddr'] + segment['p_offset'])
+        mapped_offsets = tuple(sorted(set(file_offsets)))
+
+        if len(containing) > 1:
+            # Multiple mappings describe the same virtual word. If any of
+            # them is zero-filled, or they select different file bytes, there
+            # is no single original addend to report. Only agreement between
+            # all mappings makes the word meaningful.
+            unambiguous = (
+                len(file_offsets) == len(containing) and
+                len(mapped_offsets) == 1)
+            file_offset = mapped_offsets[0] if unambiguous else None
+            addend = (self._read_addend(file_offset, file_length)
+                      if file_offset is not None else None)
+            if addend is None and unambiguous:
+                return (RelrExpandedRelocation.STATUS_OUTSIDE_FILE,
+                        file_offset, None, mapped_offsets)
+            return (RelrExpandedRelocation.STATUS_MULTIPLE_MAPPINGS,
+                    file_offset, addend, mapped_offsets)
+
+        if not file_offsets:
+            # The target begins in file-backed bytes but the word crosses into
+            # the zero-filled tail. The addend is not fully present in the
+            # file even though the address is mapped.
+            segment = containing[0]
+            if target_address < segment['p_vaddr'] + segment['p_filesz']:
+                return (RelrExpandedRelocation.STATUS_PARTIAL_MAPPING,
+                        target_address - segment['p_vaddr'] + segment['p_offset'],
+                        None, ())
+            return (RelrExpandedRelocation.STATUS_ZERO_FILL, None, None, ())
+
+        file_offset = file_offsets[0]
+        addend = self._read_addend(file_offset, file_length)
+        if addend is None:
+            return (RelrExpandedRelocation.STATUS_OUTSIDE_FILE,
+                    file_offset, None, mapped_offsets)
+        return (RelrExpandedRelocation.STATUS_FILE,
+                file_offset, addend, mapped_offsets)
+
+    def iter_expanded_relocations(self) -> Iterator[RelrExpandedRelocation]:
+        """ Yield every relocation encoded by this table with provenance.
+
+            Each result identifies the original RELR word, the target virtual
+            address and, when readable, the in-place addend. Targets that are
+            not backed by a single file-mapped PT_LOAD range are reported
+            rather than guessed.
+        """
+        loads = self._load_segments()
+        file_length = self._file_length(self._elffile)
+        for source, target in self._iter_relr_entries():
+            status, file_offset, addend, mapped_offsets = self._classify_target(
+                target, loads, file_length)
+            yield RelrExpandedRelocation(
+                target_address=target,
+                addend=addend,
+                status=status,
+                file_offset=file_offset,
+                source=source,
+                mapped_offsets=mapped_offsets)
+
+    def iter_relocations(self) -> Iterator[Relocation]:
+        """ Yield all the relocations in the section
+
+            This is the legacy Relocation interface. Use
+            iter_expanded_relocations() for the originating RELR entry and
+            target mapping details.
+        """
+        for _source, target in self._iter_relr_entries():
+            yield Relocation(Container(r_offset=target), self._elffile)
+
+    def num_expanded_relocations(self) -> int:
+        """ Number of relocations after expanding the compressed table
+        """
+        return len(self._cached_expanded_relocations)
+
+    def get_expanded_relocation(self, n: int) -> RelrExpandedRelocation:
+        """ Get the expanded relocation at index #n
+        """
+        return self._cached_expanded_relocations[n]
+
+    @cached_property
+    def _cached_expanded_relocations(self) -> list[RelrExpandedRelocation]:
+        return list(self.iter_expanded_relocations())
 
     def num_relocations(self) -> int:
         """ Number of relocations in the section
