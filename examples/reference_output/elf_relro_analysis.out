@@ -1,0 +1,21 @@
+Analyzing: ./examples/sample_exe64.elf
+page size: 4096 bytes (0x1000)
+load bias: unknown (addresses shown relative to base 0)
+PT_GNU_RELRO: present
+  declared region : 0x600e18 .. 0x601000
+  effective pages: 0x600000 .. 0x601000 (page rounded, what mprotect covers)
+  note: declared region is not page aligned, so the protected range differs from p_memsz
+binding: lazy (BIND_NOW absent)
+mapping conflicts: none
+
+relocation target slots:
+        target  section    table                  type                   verdict
+      0x600fe0  .got       .rela.dyn              R_X86_64_GLOB_DAT      protected -> __gmon_start__
+      reason: slot is inside the declared PT_GNU_RELRO region
+      reason: loader mprotect()s the containing page read-only after relocation processing
+      0x601000  .got.plt   .rela.plt              R_X86_64_JUMP_SLOT     writable (outside RELRO region) -> __libc_start_main
+      reason: slot 0x601000..0x601008 lies outside the page-rounded RELRO range 0x600000..0x601000
+      reason: JUMP_SLOT target additionally uses lazy binding (no BIND_NOW) and stays writable for on-demand resolution
+
+static analysis only: actual kernel/loader page protections are not observed
+
